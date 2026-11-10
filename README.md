@@ -46,3 +46,7 @@ Mestate LLC, Kyoto, Japan (office@mestate.jp)
 - `all_denominator`: all foreign workers with the mean of adjacent end-of-October numbers as the denominator, and with the notified numbers ±10%.
 - `all_six_strata`: all foreign workers from the sum of status-specific expected numbers (six industries).
 - `all_age_factor`: all foreign workers under alternative age factors.
+
+## Supplementary tables
+
+`supplement/Supplementary_Tables.pdf` (source: `supplement/Supplementary_Tables.md`) contains Tables S1–S5 cited in the article: further sensitivity analyses (S1), results for each year (S2), observed and expected numbers (S3), industry-specific SIRs (S4) and the age distributions used for standardization (S5; all years in `output/table_age_structure.csv`).

@@ -317,10 +317,19 @@ _i = pd.concat([_i, _c], ignore_index=True)
 _i[["sir", "lo", "hi"]] = [[round(v, 2) for v in sir_ci(o, e)] for o, e in zip(_i.obs, _i.e_age)]
 _i["e_age"] = _i.e_age.round(1)
 _i.to_csv(OUT / "table_status_industry_pooled.csv", index=False)
+# (h) age distributions used for standardization, by residence status and year (for Supplementary Table S5)
+_rows = []
+for _y in YEARS:
+    _e = emp[(emp.year == _y) & (emp.sex == "T")].groupby("age").employees.sum().reindex(AGE).to_numpy(float)
+    _rows.append(dict(year=_y, group="all_employees", **dict(zip(AGE, (_e / _e.sum() * 100).round(1)))))
+    for _s in STATUS:
+        _rows.append(dict(year=_y, group=_s, **dict(zip(AGE, (structure(_y, _s).sum(0) * 100).round(1)))))
+pd.DataFrame(_rows).to_csv(OUT / "table_age_structure.csv", index=False)
 R["sensitivity_revision1"] = SENS
 (OUT / "results.json").write_text(json.dumps(R, indent=1, ensure_ascii=False, default=float))
 
 # ---------------------------------------------------------------- figures (English)
+plt.rcParams["font.size"] = 14
 BL, OR, AQ, YL, INK, MUT, SUR = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#1f2328", "#6b7280", "#ffffff"
 
 
@@ -329,31 +338,31 @@ def style(a):
     for sp in ("top", "right"):
         a.spines[sp].set_visible(False)
     a.spines["left"].set_color("#d0d4d9"); a.spines["bottom"].set_color("#d0d4d9")
-    a.tick_params(colors=MUT, labelsize=10); a.grid(axis="y", color="#e8eaed", lw=0.8); a.set_axisbelow(True)
+    a.tick_params(colors=MUT, labelsize=13); a.grid(axis="y", color="#e8eaed", lw=0.8); a.set_axisbelow(True)
 
 
 x = np.arange(11)
-fig, ax = plt.subplots(1, 2, figsize=(13, 5), facecolor=SUR)
+fig, ax = plt.subplots(1, 2, figsize=(14, 6), facecolor=SUR)
 a = ax[0]; style(a)
 e25 = emp[(emp.year == 2025) & (emp.sex == "T")].groupby("age").employees.sum().reindex(AGE).to_numpy(float)
 for nm, p, c in [("All employees in Japan", e25 / e25.sum(), BL), ("Technical intern training", structure(2025, "titp").sum(0), OR),
                  ("Specified skilled worker", structure(2025, "ssw").sum(0), AQ), ("Status-based residents", structure(2025, "status_based").sum(0), YL)]:
     a.plot(x, p * 100, color=c, lw=2, marker="o", ms=5, label=nm)
-a.set_xticks(x); a.set_xticklabels(AGE, fontsize=9); a.set_ylabel("Share of workers (%)", color=MUT); a.set_xlabel("Age (yr)", color=MUT)
-a.legend(frameon=False, fontsize=10); a.set_title("A  Age structure of workers, 2025", loc="left", fontsize=12, color=INK)
+a.set_xticks(x); a.set_xticklabels(AGE, fontsize=11.5); a.set_ylabel("Share of workers (%)", color=MUT); a.set_xlabel("Age (yr)", color=MUT)
+a.legend(frameon=False, fontsize=13.5); a.set_title("A  Age structure of workers, 2025", loc="left", fontsize=16, color=INK)
 a = ax[1]; style(a)
 for k, nm, c in [("oth", "Other industries", BL), ("mfg", "Manufacturing", OR), ("con", "Construction", AQ)]:
     a.plot(x, rate[2025][k] * 1000, color=c, lw=2, marker="o", ms=5, label=nm)
-a.set_xticks(x); a.set_xticklabels(AGE, fontsize=9); a.set_ylim(0, None); a.set_ylabel("Injuries per 1,000 workers per year", color=MUT); a.set_xlabel("Age (yr)", color=MUT)
-a.legend(frameon=False, fontsize=10, loc="upper center", ncol=3); a.set_title("B  Age-specific injury rates of all workers, 2025", loc="left", fontsize=12, color=INK)
+a.set_xticks(x); a.set_xticklabels(AGE, fontsize=11.5); a.set_ylim(0, None); a.set_ylabel("Injuries per 1,000 workers per year", color=MUT); a.set_xlabel("Age (yr)", color=MUT)
+a.legend(frameon=False, fontsize=13.5, loc="upper right"); a.set_title("B  Age-specific injury rates of all workers, 2025", loc="left", fontsize=16, color=INK)
 plt.tight_layout(); plt.savefig(OUT / "Figure1.png", dpi=300, facecolor=SUR); plt.close()
 
-fig, ax = plt.subplots(1, 2, figsize=(14, 7.2), facecolor=SUR, gridspec_kw={"width_ratios": [1.25, 1]})
+fig, ax = plt.subplots(1, 2, figsize=(15, 8), facecolor=SUR, gridspec_kw={"width_ratios": [1.25, 1]})
 a = ax[0]; style(a)
 order = sorted(STATUS, key=lambda s: -R["status"][s]["sir_age"][0])
-# rows: all foreign workers, the seven statuses, and the two statuses combined
+# rows: all foreign workers, the two statuses combined, then the seven statuses
 ALLROW = dict(R["all"]["pooled"], crude_ratio=R["all"]["crude_ratio_pooled"])
-rows = [("All foreign workers", ALLROW)] + [(LABEL[s], R["status"][s]) for s in order] + [("Technical intern training +\nspecified skilled worker", R["status"]["titp_ssw"])]
+rows = [("All foreign workers", ALLROW), ("Technical intern training +\nspecified skilled worker", R["status"]["titp_ssw"])] + [(LABEL[s], R["status"][s]) for s in order]
 yy = np.arange(len(rows))[::-1]
 OFF = 0.26  # vertical offset so that the three estimates of a status do not overlap
 for j, (nm, d) in zip(yy, rows):
@@ -366,19 +375,19 @@ for j, (nm, d) in zip(yy, rows):
 a.scatter([], [], s=70, facecolor=SUR, edgecolor=INK, linewidth=1.8, marker="D", label="Crude rate ratio")
 a.errorbar([], [], xerr=[], fmt="o", color=BL, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry (95% CI)")
 a.errorbar([], [], xerr=[], fmt="o", color=OR, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry and age (95% CI)")
-a.axvline(1, color=MUT, lw=1.2); a.set_yticks(yy); a.set_yticklabels([nm for nm, _ in rows], fontsize=10); a.set_xlim(0, 2.2); a.set_ylim(-0.6, len(rows) - 0.4)
-a.axhline(len(rows) - 1.5, color=MUT, lw=0.8, ls="--"); a.axhline(0.5, color=MUT, lw=0.8, ls="--")
-a.grid(axis="y", visible=False); a.grid(axis="x", color="#e8eaed", lw=0.8); a.legend(frameon=False, fontsize=10, loc="upper center", bbox_to_anchor=(0.5, -0.09), ncol=3, columnspacing=1.2, handletextpad=0.3)
-a.set_xlabel("Ratio to all workers (observed / expected)", color=MUT); a.set_title("A  By residence status, 2023-2025 pooled", loc="left", fontsize=12, color=INK)
+a.axvline(1, color=MUT, lw=1.2); a.set_yticks(yy); a.set_yticklabels([nm for nm, _ in rows], fontsize=13.5); a.set_xlim(0, 2.2); a.set_ylim(-0.6, len(rows) - 0.4)
+a.axhline(len(rows) - 2.5, color=MUT, lw=0.8, ls="--")
+a.grid(axis="y", visible=False); a.grid(axis="x", color="#e8eaed", lw=0.8); a.legend(frameon=False, fontsize=13.5, loc="upper center", bbox_to_anchor=(0.35, -0.1), ncol=1, columnspacing=1.2, handletextpad=0.3)
+a.set_xlabel("Ratio to all workers (observed / expected)", color=MUT); a.set_title("A  By residence status, 2023-2025 pooled", loc="left", fontsize=16, color=INK)
 a = ax[1]; style(a)
 series = [("ssw", AQ, LABEL["ssw"], 0.0), ("status_based", YL, LABEL["status_based"], 0.0), ("titp", OR, LABEL["titp"], 0.07), (None, BL, "All foreign workers", -0.07)]
 for s, c, nm, dy in series:
     v = [(R["status"][s] if s else R["all"])["by_year"][y]["sir_age"] for y in YEARS]
     a.errorbar(YEARS, [t[0] for t in v], yerr=[[t[0] - t[1] for t in v], [t[2] - t[0] for t in v]], color=c, lw=2.2, marker="o", ms=7, capsize=4, capthick=1.8)
     a.plot([2025.06, 2025.2], [v[-1][0], v[-1][0] + dy], color=c, lw=1.2)
-    a.text(2025.23, v[-1][0] + dy, nm, va="center", fontsize=10.5, color=INK)
-a.axhline(1, color=MUT, lw=1.2); a.set_xticks(YEARS); a.set_xlim(2022.7, 2027.1); a.set_ylim(0, 2.4)
-a.set_ylabel("SIR adjusted for industry and age (95% CI)", color=MUT); a.set_title("B  By year", loc="left", fontsize=12, color=INK)
+    a.text(2025.23, v[-1][0] + dy, nm, va="center", fontsize=14, color=INK)
+a.axhline(1, color=MUT, lw=1.2); a.set_xticks(YEARS); a.set_xlim(2022.7, 2028.0); a.set_ylim(0, 2.4)
+a.set_ylabel("SIR adjusted for industry and age (95% CI)", color=MUT); a.set_title("B  By year", loc="left", fontsize=16, color=INK)
 plt.tight_layout(); plt.savefig(OUT / "Figure2.png", dpi=300, facecolor=SUR); plt.close()
 
 if __name__ == "__main__":
