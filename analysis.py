@@ -295,6 +295,28 @@ SENS["all_six_strata"] = {"obs_known_status": int(T.obs.sum()), "expected": roun
 SENS["all_denominator"]["by_weight_on_previous_october"] = {"%.2f" % w: round(A.obs.sum() / sum(r.e_age * (w * N_OCT[r.year - 1] + (1 - w) * N_OCT[r.year]) / N_OCT[r.year] for r in A.itertuples()), 3) for w in [0, 0.25, 1 / 3, 0.5]}
 # (d) overall estimate under alternative age factors applied to the eight-industry expected number
 SENS["all_age_factor"] = {"%.2f" % f: round(A.obs.sum() / (A.e_ind.sum() * f), 3) for f in [0.85, 0.88, 0.90, 0.95, 1.00]}
+# (e) combined scenarios for all foreign workers (revision 3): the least favourable assumptions taken together
+_o = A.obs.sum()
+SENS["all_combined"] = {
+    "agency_in_manufacturing_and_denominator_plus10pct": [round(v, 3) for v in sir_ci(_o, A.e_age_disp.sum() * 1.1)],
+    "denominator_plus10pct_and_age_factor_0.95": [round(v, 3) for v in sir_ci(_o, A.e_ind.sum() * 0.95 * 1.1)],
+    "agency_in_manufacturing_denominator_plus10pct_and_age_factor_0.95": [round(v, 3) for v in sir_ci(_o, A.e_ind_disp.sum() * 0.95 * 1.1)],
+}
+# (f) observed and expected numbers, pooled (for Supplementary Table S3)
+_t = pd.read_csv(OUT / "table_status_year.csv").groupby("status")[["obs", "e_ind", "e_age"]].sum()
+_t.loc["all"] = [A.obs.sum(), A.e_ind.sum(), A.e_age.sum()]
+_t["excess"] = _t.obs - _t.e_age
+_t.round(1).to_csv(OUT / "table_observed_expected_pooled.csv")
+# (g) industry-specific SIRs including the residual industries, pooled (for Supplementary Table S4)
+_i = pd.read_csv(OUT / "table_status_industry_year.csv").groupby(["status", "industry"])[["obs", "e_age"]].sum().reset_index()
+_tot = pd.read_csv(OUT / "table_status_year.csv").groupby("status")[["obs", "e_age"]].sum()
+_res = (_tot - _i.groupby("status")[["obs", "e_age"]].sum()).reset_index(); _res["industry"] = "oth"  # residual = status total minus the five named industries
+_i = pd.concat([_i, _res[_res.status.isin(_i.status.unique())]], ignore_index=True)
+_c = _i[_i.status.isin(["titp", "ssw"])].groupby("industry")[["obs", "e_age"]].sum().reset_index(); _c["status"] = "titp_ssw"
+_i = pd.concat([_i, _c], ignore_index=True)
+_i[["sir", "lo", "hi"]] = [[round(v, 2) for v in sir_ci(o, e)] for o, e in zip(_i.obs, _i.e_age)]
+_i["e_age"] = _i.e_age.round(1)
+_i.to_csv(OUT / "table_status_industry_pooled.csv", index=False)
 R["sensitivity_revision1"] = SENS
 (OUT / "results.json").write_text(json.dumps(R, indent=1, ensure_ascii=False, default=float))
 
@@ -326,12 +348,16 @@ a.set_xticks(x); a.set_xticklabels(AGE, fontsize=9); a.set_ylim(0, None); a.set_
 a.legend(frameon=False, fontsize=10, loc="upper center", ncol=3); a.set_title("B  Age-specific injury rates of all workers, 2025", loc="left", fontsize=12, color=INK)
 plt.tight_layout(); plt.savefig(OUT / "Figure1.png", dpi=300, facecolor=SUR); plt.close()
 
-fig, ax = plt.subplots(1, 2, figsize=(14, 6.2), facecolor=SUR, gridspec_kw={"width_ratios": [1.25, 1]})
+fig, ax = plt.subplots(1, 2, figsize=(14, 7.2), facecolor=SUR, gridspec_kw={"width_ratios": [1.25, 1]})
 a = ax[0]; style(a)
-order = sorted(STATUS, key=lambda s: -R["status"][s]["sir_age"][0]); yy = np.arange(len(order))[::-1]
+order = sorted(STATUS, key=lambda s: -R["status"][s]["sir_age"][0])
+# rows: all foreign workers, the seven statuses, and the two statuses combined
+ALLROW = dict(R["all"]["pooled"], crude_ratio=R["all"]["crude_ratio_pooled"])
+rows = [("All foreign workers", ALLROW)] + [(LABEL[s], R["status"][s]) for s in order] + [("Technical intern training +\nspecified skilled worker", R["status"]["titp_ssw"])]
+yy = np.arange(len(rows))[::-1]
 OFF = 0.26  # vertical offset so that the three estimates of a status do not overlap
-for j, s in zip(yy, order):
-    d = R["status"][s]; s0, s1, s2 = d["crude_ratio"], d["sir_ind"], d["sir_age"]
+for j, (nm, d) in zip(yy, rows):
+    s0, s1, s2 = d["crude_ratio"], d["sir_ind"], d["sir_age"]
     if j % 2 == 0:
         a.axhspan(j - 0.5, j + 0.5, color="#f5f6f8", zorder=0)
     a.scatter([s0], [j + OFF], s=70, facecolor=SUR, edgecolor=INK, linewidth=1.8, marker="D", zorder=3)
@@ -340,8 +366,9 @@ for j, s in zip(yy, order):
 a.scatter([], [], s=70, facecolor=SUR, edgecolor=INK, linewidth=1.8, marker="D", label="Crude rate ratio")
 a.errorbar([], [], xerr=[], fmt="o", color=BL, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry (95% CI)")
 a.errorbar([], [], xerr=[], fmt="o", color=OR, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry and age (95% CI)")
-a.axvline(1, color=MUT, lw=1.2); a.set_yticks(yy); a.set_yticklabels([LABEL[s] for s in order], fontsize=10); a.set_xlim(0, 2.2); a.set_ylim(-0.6, 6.6)
-a.grid(axis="y", visible=False); a.grid(axis="x", color="#e8eaed", lw=0.8); a.legend(frameon=False, fontsize=10, loc="lower right")
+a.axvline(1, color=MUT, lw=1.2); a.set_yticks(yy); a.set_yticklabels([nm for nm, _ in rows], fontsize=10); a.set_xlim(0, 2.2); a.set_ylim(-0.6, len(rows) - 0.4)
+a.axhline(len(rows) - 1.5, color=MUT, lw=0.8, ls="--"); a.axhline(0.5, color=MUT, lw=0.8, ls="--")
+a.grid(axis="y", visible=False); a.grid(axis="x", color="#e8eaed", lw=0.8); a.legend(frameon=False, fontsize=10, loc="upper center", bbox_to_anchor=(0.5, -0.09), ncol=3, columnspacing=1.2, handletextpad=0.3)
 a.set_xlabel("Ratio to all workers (observed / expected)", color=MUT); a.set_title("A  By residence status, 2023-2025 pooled", loc="left", fontsize=12, color=INK)
 a = ax[1]; style(a)
 series = [("ssw", AQ, LABEL["ssw"], 0.0), ("status_based", YL, LABEL["status_based"], 0.0), ("titp", OR, LABEL["titp"], 0.07), (None, BL, "All foreign workers", -0.07)]

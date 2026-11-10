@@ -5,7 +5,7 @@ Industry- and age-standardized incidence ratios (SIRs) by residence status, comp
 ## Run
     pip install pandas scipy matplotlib statsmodels
     python analysis.py
-Outputs are written to `output/` (results.json, three tables, Figure1.png, Figure2.png).
+Outputs are written to `output/` (results.json, tables as CSV, Figure1.png, Figure2.png). `table_observed_expected_pooled.csv` gives the observed and expected numbers (Supplementary Table S3) and `table_status_industry_pooled.csv` the industry-specific SIRs including the residual industries (Supplementary Table S4); the combined sensitivity scenarios are in `results.json` under `sensitivity_revision1.all_combined`.
 
 ## Data (`data/`)
 | File | Content | Source |

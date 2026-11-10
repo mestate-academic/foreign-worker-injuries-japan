@@ -2263,6 +2263,23 @@
    "0.90": 1.227,
    "0.95": 1.162,
    "1.00": 1.104
+  },
+  "all_combined": {
+   "agency_in_manufacturing_and_denominator_plus10pct": [
+    1.079,
+    1.064,
+    1.095
+   ],
+   "denominator_plus10pct_and_age_factor_0.95": [
+    1.056,
+    1.041,
+    1.072
+   ],
+   "agency_in_manufacturing_denominator_plus10pct_and_age_factor_0.95": [
+    1.004,
+    0.99,
+    1.019
+   ]
   }
  }
 }
