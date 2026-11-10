@@ -264,6 +264,7 @@ SENS = {}
 # (a) age composition differing by industry within a status: move delta of the construction workforce between ages 20-24 and 30-34,
 #     with the opposite shift in manufacturing so that the status-wide age distribution is unchanged
 i20, i30 = AGE.index("20-24"), AGE.index("30-34")
+COMB = {}
 for s in ["titp", "ssw"]:
     SENS.setdefault("age_by_industry", {})[s] = {}
     for delta in [0.0, 0.08, -0.08, 0.12, -0.12]:
@@ -277,14 +278,21 @@ for s in ["titp", "ssw"]:
             e_c += n[1] * (pc * rate[y]["con"]).sum(); e_m += n[0] * (pm * rate[y]["mfg"]).sum()
             o_c += obs_si[(y, s, "con")]; o_m += obs_si[(y, s, "mfg")]
         SENS["age_by_industry"][s]["%+.2f" % delta] = {"con": round(o_c / e_c, 2), "mfg": round(o_m / e_m, 2)}
+        for k, o, e in [("con", o_c, e_c), ("mfg", o_m, e_m)]:
+            COMB.setdefault("%+.2f" % delta, {}).setdefault(k, [0.0, 0.0]); COMB["%+.2f" % delta][k][0] += o; COMB["%+.2f" % delta][k][1] += e
+SENS["age_by_industry"]["titp_ssw"] = {d: {k: round(v[0] / v[1], 2) for k, v in x.items()} for d, x in COMB.items()}
 # (b) denominators of all foreign workers: mean of the end-of-October stocks of the current and previous year, and +/-10%
 N_OCT = {2022: 1822725, 2023: 2048675, 2024: 2302587, 2025: 2571037}
 e_mid = sum(r.e_age * (N_OCT[r.year - 1] + N_OCT[r.year]) / 2 / N_OCT[r.year] for r in A.itertuples())
 SENS["all_denominator"] = {"main": round(A.obs.sum() / A.e_age.sum(), 3), "mean_of_adjacent_october_stocks": [round(v, 3) for v in sir_ci(A.obs.sum(), e_mid)],
                            "denominator_plus10pct": round(A.obs.sum() / (A.e_age.sum() * 1.1), 3), "denominator_minus10pct": round(A.obs.sum() / (A.e_age.sum() * 0.9), 3)}
 # (c) all foreign workers: sum of status-specific expected numbers (six industries) instead of eight industries x pooled age factor
-SENS["all_six_strata"] = {"sir_ind": [round(v, 3) for v in sir_ci(A.obs.sum(), T.e_ind.sum())], "sir_age": [round(v, 3) for v in sir_ci(A.obs.sum(), T.e_age.sum())],
-                          "by_year_age": {int(y): round(A[A.year == y].obs.sum() / g.e_age.sum(), 3) for y, g in T.groupby("year")}}
+#     observed numbers are restricted to injuries with known status (55 injuries with unknown status are excluded)
+SENS["all_six_strata"] = {"obs_known_status": int(T.obs.sum()), "expected": round(T.e_age.sum(), 1),
+                          "sir_ind": [round(v, 3) for v in sir_ci(T.obs.sum(), T.e_ind.sum())], "sir_age": [round(v, 3) for v in sir_ci(T.obs.sum(), T.e_age.sum())],
+                          "by_year_age": {int(y): round(g.obs.sum() / g.e_age.sum(), 3) for y, g in T.groupby("year")}}
+# (b2) denominator timing: weight w on the previous end-of-October number (0 = main analysis, 1/2 = simple mean, 1/3 = linear interpolation to end of June)
+SENS["all_denominator"]["by_weight_on_previous_october"] = {"%.2f" % w: round(A.obs.sum() / sum(r.e_age * (w * N_OCT[r.year - 1] + (1 - w) * N_OCT[r.year]) / N_OCT[r.year] for r in A.itertuples()), 3) for w in [0, 0.25, 1 / 3, 0.5]}
 # (d) overall estimate under alternative age factors applied to the eight-industry expected number
 SENS["all_age_factor"] = {"%.2f" % f: round(A.obs.sum() / (A.e_ind.sum() * f), 3) for f in [0.85, 0.88, 0.90, 0.95, 1.00]}
 R["sensitivity_revision1"] = SENS
