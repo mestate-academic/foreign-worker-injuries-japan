@@ -258,6 +258,38 @@ for s in STATUS + ["titp_ssw"]:
     R["health_welfare"][s]["sir_welfare_2023_24"] = [round(v, 2) for v in sir_ci(g2.obs.sum(), g2.e_welfare.sum())]
 (OUT / "results.json").write_text(json.dumps(R, indent=1, ensure_ascii=False, default=float))
 
+
+# ---------------------------------------------------------------- additional sensitivity analyses (revision 1)
+SENS = {}
+# (a) age composition differing by industry within a status: move delta of the construction workforce between ages 20-24 and 30-34,
+#     with the opposite shift in manufacturing so that the status-wide age distribution is unchanged
+i20, i30 = AGE.index("20-24"), AGE.index("30-34")
+for s in ["titp", "ssw"]:
+    SENS.setdefault("age_by_industry", {})[s] = {}
+    for delta in [0.0, 0.08, -0.08, 0.12, -0.12]:
+        o_c = o_m = e_c = e_m = 0.0
+        for y in YEARS:
+            n, pa = workers(y, s), structure(y, s).sum(0)
+            pc, pm = pa.copy(), pa.copy()
+            pc[i20] += delta; pc[i30] -= delta
+            dm = delta * n[1] / n[0]
+            pm[i20] -= dm; pm[i30] += dm
+            e_c += n[1] * (pc * rate[y]["con"]).sum(); e_m += n[0] * (pm * rate[y]["mfg"]).sum()
+            o_c += obs_si[(y, s, "con")]; o_m += obs_si[(y, s, "mfg")]
+        SENS["age_by_industry"][s]["%+.2f" % delta] = {"con": round(o_c / e_c, 2), "mfg": round(o_m / e_m, 2)}
+# (b) denominators of all foreign workers: mean of the end-of-October stocks of the current and previous year, and +/-10%
+N_OCT = {2022: 1822725, 2023: 2048675, 2024: 2302587, 2025: 2571037}
+e_mid = sum(r.e_age * (N_OCT[r.year - 1] + N_OCT[r.year]) / 2 / N_OCT[r.year] for r in A.itertuples())
+SENS["all_denominator"] = {"main": round(A.obs.sum() / A.e_age.sum(), 3), "mean_of_adjacent_october_stocks": [round(v, 3) for v in sir_ci(A.obs.sum(), e_mid)],
+                           "denominator_plus10pct": round(A.obs.sum() / (A.e_age.sum() * 1.1), 3), "denominator_minus10pct": round(A.obs.sum() / (A.e_age.sum() * 0.9), 3)}
+# (c) all foreign workers: sum of status-specific expected numbers (six industries) instead of eight industries x pooled age factor
+SENS["all_six_strata"] = {"sir_ind": [round(v, 3) for v in sir_ci(A.obs.sum(), T.e_ind.sum())], "sir_age": [round(v, 3) for v in sir_ci(A.obs.sum(), T.e_age.sum())],
+                          "by_year_age": {int(y): round(A[A.year == y].obs.sum() / g.e_age.sum(), 3) for y, g in T.groupby("year")}}
+# (d) overall estimate under alternative age factors applied to the eight-industry expected number
+SENS["all_age_factor"] = {"%.2f" % f: round(A.obs.sum() / (A.e_ind.sum() * f), 3) for f in [0.85, 0.88, 0.90, 0.95, 1.00]}
+R["sensitivity_revision1"] = SENS
+(OUT / "results.json").write_text(json.dumps(R, indent=1, ensure_ascii=False, default=float))
+
 # ---------------------------------------------------------------- figures (English)
 BL, OR, AQ, YL, INK, MUT, SUR = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#1f2328", "#6b7280", "#ffffff"
 
@@ -302,13 +334,13 @@ a.axvline(1, color=MUT, lw=1.2); a.set_yticks(yy); a.set_yticklabels([LABEL[s] f
 a.grid(axis="y", visible=False); a.grid(axis="x", color="#e8eaed", lw=0.8); a.legend(frameon=False, fontsize=10, loc="lower right")
 a.set_xlabel("Ratio to all workers (observed / expected)", color=MUT); a.set_title("A  By residence status, 2023-2025 pooled", loc="left", fontsize=12, color=INK)
 a = ax[1]; style(a)
-for s, c, dy in [("ssw", AQ, 0), ("status_based", YL, 0), ("titp", OR, 0.07)]:
+for s, c, dy in [("ssw", AQ, 0), ("status_based", YL, 0), ("titp", OR, 0.09)]:
     v = [R["status"][s]["by_year"][y]["sir_age"] for y in YEARS]
     a.errorbar(YEARS, [t[0] for t in v], yerr=[[t[0] - t[1] for t in v], [t[2] - t[0] for t in v]], color=c, lw=2, marker="o", ms=7)
     a.text(2025.08, v[-1][0] + dy, "%s %.2f" % (LABEL[s], v[-1][0]), va="center", fontsize=10, color=INK)
 v = [R["all"]["by_year"][y]["sir_age"] for y in YEARS]
 a.errorbar(YEARS, [t[0] for t in v], yerr=[[t[0] - t[1] for t in v], [t[2] - t[0] for t in v]], color=BL, lw=2, marker="o", ms=7)
-a.text(2025.08, v[-1][0] - 0.07, "All foreign workers %.2f" % (v[-1][0] + 1e-9), va="center", fontsize=10, color=INK)
+a.text(2025.08, v[-1][0] - 0.09, "All foreign workers %.2f" % (v[-1][0] + 1e-9), va="center", fontsize=10, color=INK)
 a.axhline(1, color=MUT, lw=1.2); a.set_xticks(YEARS); a.set_xlim(2022.7, 2026.9); a.set_ylim(0, 2.4)
 a.set_ylabel("SIR adjusted for industry and age", color=MUT); a.set_title("B  By year", loc="left", fontsize=12, color=INK)
 plt.tight_layout(); plt.savefig(OUT / "Figure2.png", dpi=300, facecolor=SUR); plt.close()

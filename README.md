@@ -37,3 +37,12 @@ Code: MIT licence. Data: transcribed from statistics published by the Government
 
 ## Contact
 Mestate LLC, Kyoto, Japan (office@mestate.jp)
+
+## Additional sensitivity analyses (revision 1, November 2026)
+
+`output/results.json` → `sensitivity_revision1`:
+
+- `age_by_industry`: SIRs in construction and manufacturing for TITP and SSW when the age structure is allowed to differ between industries (8 or 12 percentage points moved between ages 20–24 and 30–34).
+- `all_denominator`: all foreign workers with the mean of adjacent end-of-October numbers as the denominator, and with the notified numbers ±10%.
+- `all_six_strata`: all foreign workers from the sum of status-specific expected numbers (six industries).
+- `all_age_factor`: all foreign workers under alternative age factors.
