@@ -301,6 +301,7 @@ SENS["all_combined"] = {
     "agency_in_manufacturing_and_denominator_plus10pct": [round(v, 3) for v in sir_ci(_o, A.e_age_disp.sum() * 1.1)],
     "denominator_plus10pct_and_age_factor_0.95": [round(v, 3) for v in sir_ci(_o, A.e_ind.sum() * 0.95 * 1.1)],
     "agency_in_manufacturing_denominator_plus10pct_and_age_factor_0.95": [round(v, 3) for v in sir_ci(_o, A.e_ind_disp.sum() * 0.95 * 1.1)],
+    "agency_in_manufacturing_denominator_plus10pct_and_no_age_adjustment": [round(v, 3) for v in sir_ci(_o, A.e_ind_disp.sum() * 1.1)],
 }
 # (f) observed and expected numbers, pooled (for Supplementary Table S3)
 _t = pd.read_csv(OUT / "table_status_year.csv").groupby("status")[["obs", "e_ind", "e_age"]].sum()
@@ -345,16 +346,17 @@ x = np.arange(11)
 fig, ax = plt.subplots(1, 2, figsize=(14, 6), facecolor=SUR)
 a = ax[0]; style(a)
 e25 = emp[(emp.year == 2025) & (emp.sex == "T")].groupby("age").employees.sum().reindex(AGE).to_numpy(float)
-for nm, p, c in [("All employees in Japan", e25 / e25.sum(), BL), ("Technical intern training", structure(2025, "titp").sum(0), OR),
-                 ("Specified skilled worker", structure(2025, "ssw").sum(0), AQ), ("Status-based residents", structure(2025, "status_based").sum(0), YL)]:
-    a.plot(x, p * 100, color=c, lw=2, marker="o", ms=5, label=nm)
+# each series differs in colour, marker shape and line style, so that the figures remain readable in greyscale
+for nm, p, c, mk, ls in [("All employees in Japan", e25 / e25.sum(), BL, "o", "-"), ("Technical intern training", structure(2025, "titp").sum(0), OR, "s", "--"),
+                         ("Specified skilled worker", structure(2025, "ssw").sum(0), AQ, "^", "-."), ("Status-based residents", structure(2025, "status_based").sum(0), YL, "D", ":")]:
+    a.plot(x, p * 100, color=c, lw=2.2, marker=mk, ms=7, ls=ls, label=nm)
 a.set_xticks(x); a.set_xticklabels(AGE, fontsize=11.5); a.set_ylabel("Share of workers (%)", color=MUT); a.set_xlabel("Age (yr)", color=MUT)
-a.legend(frameon=False, fontsize=13.5); a.set_title("A  Age structure of workers, 2025", loc="left", fontsize=16, color=INK)
+a.legend(frameon=False, fontsize=13.5, handlelength=3.2); a.set_title("A  Age structure of workers, 2025", loc="left", fontsize=16, color=INK)
 a = ax[1]; style(a)
-for k, nm, c in [("oth", "Other industries", BL), ("mfg", "Manufacturing", OR), ("con", "Construction", AQ)]:
-    a.plot(x, rate[2025][k] * 1000, color=c, lw=2, marker="o", ms=5, label=nm)
+for k, nm, c, mk, ls in [("oth", "Other industries", BL, "o", "-"), ("mfg", "Manufacturing", OR, "s", "--"), ("con", "Construction", AQ, "^", "-.")]:
+    a.plot(x, rate[2025][k] * 1000, color=c, lw=2.2, marker=mk, ms=7, ls=ls, label=nm)
 a.set_xticks(x); a.set_xticklabels(AGE, fontsize=11.5); a.set_ylim(0, None); a.set_ylabel("Injuries per 1,000 workers per year", color=MUT); a.set_xlabel("Age (yr)", color=MUT)
-a.legend(frameon=False, fontsize=13.5, loc="upper right"); a.set_title("B  Age-specific injury rates of all workers, 2025", loc="left", fontsize=16, color=INK)
+a.legend(frameon=False, fontsize=13.5, loc="upper right", handlelength=3.2); a.set_title("B  Age-specific injury rates of all workers, 2025", loc="left", fontsize=16, color=INK)
 plt.tight_layout(); plt.savefig(OUT / "Figure1.png", dpi=300, facecolor=SUR); plt.close()
 
 fig, ax = plt.subplots(1, 2, figsize=(15, 8), facecolor=SUR, gridspec_kw={"width_ratios": [1.25, 1]})
@@ -370,20 +372,20 @@ for j, (nm, d) in zip(yy, rows):
     if j % 2 == 0:
         a.axhspan(j - 0.5, j + 0.5, color="#f5f6f8", zorder=0)
     a.scatter([s0], [j + OFF], s=70, facecolor=SUR, edgecolor=INK, linewidth=1.8, marker="D", zorder=3)
-    a.errorbar([s1[0]], [j], xerr=[[s1[0] - s1[1]], [s1[2] - s1[0]]], fmt="o", color=BL, ms=8, lw=2.2, capsize=4, capthick=2, zorder=4)
+    a.errorbar([s1[0]], [j], xerr=[[s1[0] - s1[1]], [s1[2] - s1[0]]], fmt="s", color=BL, mfc=SUR, mew=2, ms=8, lw=2.2, capsize=4, capthick=2, zorder=4)
     a.errorbar([s2[0]], [j - OFF], xerr=[[s2[0] - s2[1]], [s2[2] - s2[0]]], fmt="o", color=OR, ms=8, lw=2.2, capsize=4, capthick=2, zorder=5)
 a.scatter([], [], s=70, facecolor=SUR, edgecolor=INK, linewidth=1.8, marker="D", label="Crude rate ratio")
-a.errorbar([], [], xerr=[], fmt="o", color=BL, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry (95% CI)")
+a.errorbar([], [], xerr=[], fmt="s", color=BL, mfc=SUR, mew=2, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry (95% CI)")
 a.errorbar([], [], xerr=[], fmt="o", color=OR, ms=8, lw=2.2, capsize=4, label="SIR adjusted for industry and age (95% CI)")
 a.axvline(1, color=MUT, lw=1.2); a.set_yticks(yy); a.set_yticklabels([nm for nm, _ in rows], fontsize=13.5); a.set_xlim(0, 2.2); a.set_ylim(-0.6, len(rows) - 0.4)
 a.axhline(len(rows) - 2.5, color=MUT, lw=0.8, ls="--")
 a.grid(axis="y", visible=False); a.grid(axis="x", color="#e8eaed", lw=0.8); a.legend(frameon=False, fontsize=13.5, loc="upper center", bbox_to_anchor=(0.35, -0.1), ncol=1, columnspacing=1.2, handletextpad=0.3)
 a.set_xlabel("Ratio to all workers (observed / expected)", color=MUT); a.set_title("A  By residence status, 2023-2025 pooled", loc="left", fontsize=16, color=INK)
 a = ax[1]; style(a)
-series = [("ssw", AQ, LABEL["ssw"], 0.0), ("status_based", YL, LABEL["status_based"], 0.0), ("titp", OR, LABEL["titp"], 0.07), (None, BL, "All foreign workers", -0.07)]
-for s, c, nm, dy in series:
+series = [("ssw", AQ, LABEL["ssw"], 0.0, "^", "-."), ("status_based", YL, LABEL["status_based"], 0.0, "D", ":"), ("titp", OR, LABEL["titp"], 0.07, "s", "--"), (None, BL, "All foreign workers", -0.07, "o", "-")]
+for s, c, nm, dy, mk, ls in series:
     v = [(R["status"][s] if s else R["all"])["by_year"][y]["sir_age"] for y in YEARS]
-    a.errorbar(YEARS, [t[0] for t in v], yerr=[[t[0] - t[1] for t in v], [t[2] - t[0] for t in v]], color=c, lw=2.2, marker="o", ms=7, capsize=4, capthick=1.8)
+    a.errorbar(YEARS, [t[0] for t in v], yerr=[[t[0] - t[1] for t in v], [t[2] - t[0] for t in v]], color=c, lw=2.2, marker=mk, ms=8, ls=ls, capsize=4, capthick=1.8)
     a.plot([2025.06, 2025.2], [v[-1][0], v[-1][0] + dy], color=c, lw=1.2)
     a.text(2025.23, v[-1][0] + dy, nm, va="center", fontsize=14, color=INK)
 a.axhline(1, color=MUT, lw=1.2); a.set_xticks(YEARS); a.set_xlim(2022.7, 2028.0); a.set_ylim(0, 2.4)

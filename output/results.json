@@ -2279,6 +2279,11 @@
     1.004,
     0.99,
     1.019
+   ],
+   "agency_in_manufacturing_denominator_plus10pct_and_no_age_adjustment": [
+    0.954,
+    0.941,
+    0.968
    ]
   }
  }

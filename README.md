@@ -50,3 +50,9 @@ Mestate LLC, Kyoto, Japan (office@mestate.jp)
 ## Supplementary tables
 
 `supplement/Supplementary_Tables.pdf` (source: `supplement/Supplementary_Tables.md`) contains Tables S1–S5 cited in the article: further sensitivity analyses (S1), results for each year (S2), observed and expected numbers (S3), industry-specific SIRs (S4) and the age distributions used for standardization (S5; all years in `output/table_age_structure.csv`).
+
+## Additions (12 November 2026)
+
+- Figures: series are distinguished by marker shape and line style as well as colour.
+- `results.json` → `sensitivity_revision1.all_combined`: one more combined scenario (agency workers in manufacturing, 10% more workers, no age adjustment).
+- `survey_check.py`: compares the age structures estimated from residents with the 2025 Survey on Employment of Foreign Workers (MHLW, establishment survey, Table 1; values transcribed in the script) and recomputes the 2025 SIRs with the survey structure. Run `python survey_check.py` from the repository root.
